@@ -40,7 +40,7 @@ void get_W_matrix(Mat& W_matrix, const int size){
   }
 }
 
-void one_dimensional_dft(const Mat& W_matrix, Mat& src, Mat& dst, int i){
+void one_dimensional_dft(const Mat& W_matrix, Mat& src, int i){
 
   Mat tmp_dst;
   src.copyTo(tmp_dst);
@@ -69,7 +69,7 @@ void one_dimensional_dft(const Mat& W_matrix, Mat& src, Mat& dst, int i){
 //      printf("\n[i = %i, col = %i], %f\n", i, row, tmp_dst.at<Vec2f>(i,row)[0]);
 //      printf("\n[i = %i, col = %i], %f\n", i, row, tmp_dst.at<Vec2f>(i,row)[1]);
   }
-  tmp_dst.copyTo(dst);
+  tmp_dst.copyTo(src);
 }
 
 
@@ -92,7 +92,7 @@ void user_dft(Mat& src_float, Mat& dst){ //src_float (0...1) - 1 channel, dst - 
 
   //get DFT for every row
   for (int i = 0; i < dst.rows; ++i) {
-    one_dimensional_dft(W_matrix_X, dst, dst, i);
+    one_dimensional_dft(W_matrix_X, dst, i);
   }
 
   //matPrint("dst", dst);
@@ -102,7 +102,7 @@ void user_dft(Mat& src_float, Mat& dst){ //src_float (0...1) - 1 channel, dst - 
 
   //get DFT for every row
   for (int i = 0; i < dst.rows; ++i) {
-    one_dimensional_dft(W_matrix_Y, dst, dst, i);
+    one_dimensional_dft(W_matrix_Y, dst, i);
   }
 
   dst = dst.t();
