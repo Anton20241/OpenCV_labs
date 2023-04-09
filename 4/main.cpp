@@ -139,6 +139,7 @@ void showDFT(const Mat& src){
   waitKey();
 }
 
+
 int main() {
 
   Mat input_img;
@@ -155,11 +156,15 @@ int main() {
 //  }
 
   assert(!input_img.empty());
-
-  take_USER_DFT(input_img, dft_img);
-  //take_OpenCV_DFT(input_img, dft_img);
-
   imshow("input_img", input_img);
+
+  //take_USER_DFT(input_img, dft_img);
+  take_OpenCV_DFT(input_img, dft_img);
+
+  Mat imgFromDft;
+  dft(dft_img, imgFromDft, DFT_INVERSE|DFT_REAL_OUTPUT|DFT_SCALE);
+  imshow("imgFromDft", imgFromDft);
+
   showDFT(dft_img);
 
   return 0;
