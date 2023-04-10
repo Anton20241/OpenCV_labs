@@ -8,6 +8,11 @@
 
 using namespace cv;
 
+enum dftType{
+    DIRECT_DFT,
+    INVERSE_DFT
+};
+
 void matPrint(const std::string name, const Mat& mat){
   std::cout << "\n[" << name << " x" << "]:\n";
   for (int i = 0; i < mat.rows; ++i) {
@@ -26,11 +31,22 @@ void matPrint(const std::string name, const Mat& mat){
   }
 }
 
-void get_W_matrix(Mat& W_matrix, const int size){
+void get_W_matrix(Mat& W_matrix, const int size, size_t type){
 
   Mat originalComplex[2] = {Mat::zeros(size, size, CV_32F), Mat::zeros(size, size, CV_32F)};
   merge(originalComplex, 2, W_matrix);
-  std::complex<float> W_const_complex(cos(-2 * M_PI / size), sin(-2 * M_PI / size));
+  std::complex<float> W_const_complex;
+
+  if (type == DIRECT_DFT){
+    W_const_complex.real(cos(-2 * M_PI / size));
+    W_const_complex.imag(sin(-2 * M_PI / size));
+  }
+
+  if (type == INVERSE_DFT){
+    W_const_complex.real(cos(2 * M_PI / size));
+    W_const_complex.imag(sin(2 * M_PI / size));
+  }
+
 
    for (int i = 0; i < size; ++i) {
     for (int j = 0; j < size; ++j) {
@@ -40,7 +56,7 @@ void get_W_matrix(Mat& W_matrix, const int size){
   }
 }
 
-void one_dimensional_dft(const Mat& W_matrix, Mat& src, int i){
+void one_dimensional_dft(const Mat& W_matrix, Mat& src, int i,  size_t type){
 
   Mat tmp_dst;
   src.copyTo(tmp_dst);
@@ -56,9 +72,18 @@ void one_dimensional_dft(const Mat& W_matrix, Mat& src, int i){
       float b = W_matrix.at<Vec2f>(row, col)[1];
       float x = src.at<Vec2f>(i, col)[0];
       float y = src.at<Vec2f>(i, col)[1];
+      float x_temp = 0;
+      float y_temp = 0;
 
-      float x_temp = (a * x - b * y);
-      float y_temp = (a * y + b * x);
+      if (type == DIRECT_DFT){
+        x_temp = (a * x - b * y);
+        y_temp = (a * y + b * x);
+      }
+
+      if (type == INVERSE_DFT){
+        x_temp = (a * x - b * y) / W_matrix.rows;
+        y_temp = (a * y + b * x) / W_matrix.rows;
+      }
 
       xx_temp += x_temp;
       yy_temp += y_temp;
@@ -66,6 +91,8 @@ void one_dimensional_dft(const Mat& W_matrix, Mat& src, int i){
       tmp_dst.at<Vec2f>(i,row)[0] = xx_temp;
       tmp_dst.at<Vec2f>(i,row)[1] = yy_temp;
     }
+
+
 //      printf("\n[i = %i, col = %i], %f\n", i, row, tmp_dst.at<Vec2f>(i,row)[0]);
 //      printf("\n[i = %i, col = %i], %f\n", i, row, tmp_dst.at<Vec2f>(i,row)[1]);
   }
@@ -77,12 +104,12 @@ void user_dft(Mat& src_float, Mat& dst){ //src_float (0...1) - 1 channel, dst - 
 
   //get W_matrix_X
   Mat W_matrix_X;
-  get_W_matrix(W_matrix_X, src_float.cols);
+  get_W_matrix(W_matrix_X, src_float.cols, DIRECT_DFT);
   //matPrint("W_matrix_X", W_matrix_X);
 
   //get W_matrix_Y
   Mat W_matrix_Y;
-  get_W_matrix(W_matrix_Y, src_float.rows);
+  get_W_matrix(W_matrix_Y, src_float.rows, DIRECT_DFT);
   //matPrint("W_matrix_Y", W_matrix_Y);
 
   Mat originalComplex[2] = {src_float, Mat::zeros(src_float.size(), CV_32F)};
@@ -92,7 +119,7 @@ void user_dft(Mat& src_float, Mat& dst){ //src_float (0...1) - 1 channel, dst - 
 
   //get DFT for every row
   for (int i = 0; i < dst.rows; ++i) {
-    one_dimensional_dft(W_matrix_X, dst, i);
+    one_dimensional_dft(W_matrix_X, dst, i, DIRECT_DFT);
   }
 
   //matPrint("dst", dst);
@@ -102,10 +129,11 @@ void user_dft(Mat& src_float, Mat& dst){ //src_float (0...1) - 1 channel, dst - 
 
   //get DFT for every row
   for (int i = 0; i < dst.rows; ++i) {
-    one_dimensional_dft(W_matrix_Y, dst, i);
+    one_dimensional_dft(W_matrix_Y, dst, i, DIRECT_DFT);
   }
 
   dst = dst.t();
+
   //matPrint("dst", dst);
 }
 
@@ -135,17 +163,53 @@ void showDFT(const Mat& src){
   imshow("DFT", dftMagnitude);
   Mat gray;
   dftMagnitude.convertTo(gray, CV_8U, 255); // upscale to [0..255]
-  imwrite("Anton.jpg", gray);
+  imwrite("1DFT.jpg", gray);
   waitKey();
 }
 
+void user_invert_dft(Mat& dft_img, Mat& imgFromDft){
+
+  //get W_matrix_X
+  Mat W_matrix_X;
+  get_W_matrix(W_matrix_X, dft_img.cols, INVERSE_DFT);
+  //matPrint("W_matrix_X", W_matrix_X);
+
+  //get W_matrix_Y
+  Mat W_matrix_Y;
+  get_W_matrix(W_matrix_Y, dft_img.rows, INVERSE_DFT);
+  //matPrint("W_matrix_Y", W_matrix_Y);
+
+  dft_img.copyTo(imgFromDft);
+
+  //get DFT for every row
+  for (int i = 0; i < imgFromDft.rows; ++i) {
+    one_dimensional_dft(W_matrix_X, imgFromDft, i, INVERSE_DFT);
+  }
+
+  //matPrint("dst", dst);
+
+  imgFromDft = imgFromDft.t();
+  //matPrint("dstTranspose", dst);
+
+  //get DFT for every row
+  for (int i = 0; i < imgFromDft.rows; ++i) {
+    one_dimensional_dft(W_matrix_Y, imgFromDft, i, INVERSE_DFT);
+  }
+
+  imgFromDft = imgFromDft.t();
+  //matPrint("dst", dst);
+
+  Mat splitChannels[2];
+  split(imgFromDft, splitChannels);
+  imgFromDft = splitChannels[0];
+}
 
 int main() {
 
   Mat input_img;
   Mat dft_img;
 
-  input_img = cv::imread("12.jpg", cv::IMREAD_GRAYSCALE);
+  input_img = cv::imread("1.jpg", cv::IMREAD_GRAYSCALE);
 //input_img = cv::imread("11.jpg", cv::IMREAD_GRAYSCALE);
 
 //  input_img.create(Size(4, 5), cv::IMREAD_GRAYSCALE);
@@ -158,11 +222,12 @@ int main() {
   assert(!input_img.empty());
   imshow("input_img", input_img);
 
-  //take_USER_DFT(input_img, dft_img);
-  take_OpenCV_DFT(input_img, dft_img);
+  take_USER_DFT(input_img, dft_img);
+  //take_OpenCV_DFT(input_img, dft_img);
 
   Mat imgFromDft;
-  dft(dft_img, imgFromDft, DFT_INVERSE|DFT_REAL_OUTPUT|DFT_SCALE);
+  //dft(dft_img, imgFromDft, DFT_INVERSE|DFT_REAL_OUTPUT|DFT_SCALE);
+  user_invert_dft(dft_img, imgFromDft);
   imshow("imgFromDft", imgFromDft);
 
   showDFT(dft_img);
