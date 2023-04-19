@@ -151,47 +151,6 @@ void do_part_2() {
   }
 }
 
-bool contourIsValid(std::vector<cv::Point> contour, size_t k, cv::Mat &img_res, cv::Point lampCenterPointer) {
-
-  cv::Moments contMoment = cv::moments(contour);
-  double m00 = contMoment.m00;
-  double m01 = contMoment.m01;
-  double m10 = contMoment.m10;
-  cv::Point contCenter(m10 / m00, m01 / m00);
-
-  double dst2Lamp = (double) sqrt(pow(lampCenterPointer.x - contCenter.x, 2) +
-                                  pow(lampCenterPointer.y - contCenter.y, 2));
-
-  cv::Point right = contour[0];
-  cv::Point left = contour[0];
-  cv::Point up = contour[0];
-  cv::Point down = contour[0];
-
-  for (int i = 0; i < contour.size(); i++) {
-    if (contour[i].x > right.x) right = contour[i];
-    if (contour[i].x < left.x) left = contour[i];
-    if (contour[i].y > up.y) up = contour[i];
-    if (contour[i].y < down.y) down = contour[i];
-  }
-
-  double widthContour = abs(right.x - left.x);
-  double heightContour = abs(up.y - down.y);
-
-  if (contourArea(contour) < 200) return false;
-  if (dst2Lamp < 50) return false;
-  if ((double) widthContour / heightContour >= 3) return false;
-  if ((double) heightContour / widthContour >= 3) return false;
-  if ((double) (up.x - left.x) / (right.x - up.x) >= 30) return false;
-  if ((double) (right.x - up.x) / (up.x - left.x) >= 30) return false;
-  if ((double) (down.x - left.x) / (right.x - down.x) >= 30) return false;
-  if ((double) (right.x - down.x) / (down.x - left.x) >= 30) return false;
-  if ((double) (up.y - left.y) / (left.y - down.y) >= 30) return false;
-  if ((double) (left.y - down.y) / (up.y - left.y) >= 30) return false;
-  if ((double) (up.y - right.y) / (right.y - down.y) >= 30) return false;
-  if ((double) (right.y - down.y) / (up.y - right.y) >= 30) return false;
-  return true;
-}
-
 void do_part_3() {
   std::string addrImages = "../LAB3/img_zadan/roboti/";
   std::vector<std::string> imagesData = cv::Directory::GetListFiles(addrImages);
@@ -269,6 +228,9 @@ void do_part_3() {
       } else {
         inRange(img_hsv, lowBrd[i], upBrd[i], img_threshold);
       }
+      cv::Mat fon = cv::imread("fon.jpg");
+      cv::cvtColor(fon,fon,cv::COLOR_RGB2GRAY);
+      img_threshold -= fon;
 
       //delete noise
       cv::Mat kernel(cv::Size(7, 7), CV_8UC1, cv::Scalar(255));
@@ -297,8 +259,6 @@ void do_part_3() {
       bool is_first = true;
       for (size_t k = 0; k < contours.size(); k++) {
 
-        if (!contourIsValid(contours[k], k, img_res, lampCenterPointer)) continue;
-
         polylines(img_res, contours[k], true, contoursColorBGR[i], 3, 8);
 
         cv::Moments moments = cv::moments(contours[k]);
@@ -322,6 +282,7 @@ void do_part_3() {
 
     //show images
     cv::imshow("RES: " + imagesData[imageIndex], img_res);
+    cv::imwrite("RES: " + imagesData[imageIndex], img_res);
     cv::waitKey();
   }
 }

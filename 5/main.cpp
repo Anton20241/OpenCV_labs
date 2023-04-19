@@ -248,7 +248,7 @@ void cameraCalibrationProcess(Mat& cameraMatrix, Mat& distanceCoefficients, size
 
     switch (character)
     {
-      case' ':
+      case ' ':
         //saving image
         if (found){
           savedImages.push_back(frame);
@@ -367,9 +367,9 @@ int main()
   //cameraCalibrationProcess(cameraMatrix, distanceCoefficients, ARUCO_BOARD);
 
   ////load camera params
-  loadCameraCalibCoeffs("chess_сameraCalibCoeffs", cameraMatrix, distanceCoefficients);
+  //loadCameraCalibCoeffs("chess_сameraCalibCoeffs", cameraMatrix, distanceCoefficients);
   //loadCameraCalibCoeffs("aruco_сameraCalibCoeffs", cameraMatrix, distanceCoefficients);
-  //loadCameraCalibCoeffs("matlab_сameraCalibCoeffs", cameraMatrix, distanceCoefficients);
+  loadCameraCalibCoeffs("matlab_сameraCalibCoeffs", cameraMatrix, distanceCoefficients);
 
   ////find markers and draw cube
   startWebcamMonitoring(cameraMatrix, distanceCoefficients);
