@@ -183,7 +183,7 @@ void do_part_3() {
     //find contours
     std::vector<std::vector<cv::Point> > contoursLamp;
     cv::findContours(img_bin.clone(), contoursLamp, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
-    cv::drawContours(img_res, contoursLamp, -1, cv::Scalar(0, 255, 255), 3);
+    cv::drawContours(img_res, contoursLamp, -1, cv::Scalar(0, 0, 0), 3);
 
 //    //show images
 //    cv::imshow("RES: " + imagesData[imageIndex], img_res);
@@ -285,6 +285,146 @@ void do_part_3() {
     cv::imwrite("RES: " + imagesData[imageIndex], img_res);
     cv::waitKey();
   }
+}
+
+void draw_cross(cv::Mat& img, double x_cntr, double y_cntr, double size, cv::Scalar color)
+{
+  cv::line(img,{x_cntr - size/2,y_cntr},{x_cntr - size/8,y_cntr},color,3);
+  cv::line(img,{x_cntr + size/8,y_cntr},{x_cntr + size/2,y_cntr},color,3);
+  cv::line(img,{x_cntr,y_cntr + size/2},{x_cntr,y_cntr + size/8},color,3);
+  cv::line(img,{x_cntr,y_cntr - size/2},{x_cntr,y_cntr - size/8},color,3);
+  cv::line(img,{x_cntr,y_cntr},{x_cntr,y_cntr},color,3);
+}
+
+void do_part_3_on_video(){
+  cv::Mat frame;
+  cv::VideoCapture vid("robs.mp4");
+  assert(vid.isOpened());
+  cv::VideoWriter video("find_robots.mp4",
+                        cv::VideoWriter::fourcc('m','p','4','v'),
+                        10,
+                        cv::Size(1920,1080));
+  while (true){
+    vid.read(frame);
+    if (frame.empty()) break;
+
+    //create img
+    cv::Mat img_hsv;
+    cv::Mat img_res;
+    cv::Mat lamp_bin;
+    cv::Mat img_threshold;
+    cv::Mat img_gray;
+    frame.copyTo(img_res);
+
+    //<-----find lamp----->//
+    //to gray
+    cv::cvtColor(frame, img_gray, cv::COLOR_BGR2GRAY);
+
+    //binary
+    cv::threshold(img_gray, lamp_bin, 250, 255, cv::THRESH_BINARY);
+
+    //delete noise
+    cv::Mat kernel(cv::Size(7, 7), CV_8UC1, cv::Scalar(255));
+    cv::erode(lamp_bin, lamp_bin, kernel);
+    cv::dilate(lamp_bin, lamp_bin, kernel);
+
+    //find contours
+    std::vector<std::vector<cv::Point> > contoursLamp;
+    cv::findContours(lamp_bin.clone(), contoursLamp, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
+    cv::drawContours(img_res, contoursLamp, -1, cv::Scalar(0, 0, 0), 3);
+
+    //get lamp's coordinates
+    cv::Moments lampCtrMoment = cv::moments(contoursLamp[0]);
+    double m00 = lampCtrMoment.m00;
+    double m01 = lampCtrMoment.m01;
+    double m10 = lampCtrMoment.m10;
+    cv::Point lampCenterPointer(m10 / m00, m01 / m00);
+
+    //<-----find caps----->//
+    // Convert from BGR to HSV colorspace
+    cvtColor(frame, img_hsv, cv::COLOR_BGR2HSV);
+
+    //trackBarHsv(img_hsv);
+
+    //get threshold parameters
+    std::vector<cv::Scalar> lowBrd = {cv::Scalar(0, 60, 125),    // R
+                                      cv::Scalar(50, 39, 125),    // G
+                                      cv::Scalar(80, 35, 35)};   // B
+
+    std::vector<cv::Scalar> upBrd = {cv::Scalar(50, 255, 255),     // R
+                                     cv::Scalar(80, 255, 255),      // G
+                                     cv::Scalar(106, 255, 255)};    // B
+
+    std::vector<cv::Scalar> contoursColorRGB = {cv::Scalar(0, 0, 255),    // R
+                                                cv::Scalar(0, 255, 0),    // G
+                                                cv::Scalar(255, 0, 0)};   // B
+
+    for (size_t i = 0; i < contoursColorRGB.size(); i++) {
+      // Detect the object based on HSV Range Values
+      //for red color
+      if (i == 0) {
+        cv::Mat tmp_img_threshold;
+        inRange(img_hsv, cv::Scalar(129, 60, 125), cv::Scalar(179, 255, 255), tmp_img_threshold);
+        inRange(img_hsv, lowBrd[i], upBrd[i], img_threshold);
+        img_threshold += tmp_img_threshold;
+      } else {
+        inRange(img_hsv, lowBrd[i], upBrd[i], img_threshold);
+      }
+      cv::Mat fon = cv::imread("fon.jpg");
+      cv::cvtColor(fon,fon,cv::COLOR_RGB2GRAY);
+      img_threshold -= fon;
+      img_threshold -= lamp_bin;
+
+      //delete noise
+      cv::Mat kernel(cv::Size(17, 17), CV_8UC1, cv::Scalar(255));
+      cv::erode(img_threshold, img_threshold, kernel);
+      cv::dilate(img_threshold, img_threshold, kernel);
+
+      cv::Mat erodeMat;
+      cv::Mat imgContour;
+
+      cv::erode(img_threshold, erodeMat, kernel);
+      imgContour = img_threshold - erodeMat;
+
+      //find contours
+      std::vector<std::vector<cv::Point> > contours;
+      cv::findContours(img_threshold.clone(), contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
+      // cv::drawContours(img_res, contours, -1, contoursColorBGR[i], 3);
+
+      //find nearest robot to lamp
+      size_t minDist2Lamp = 0;
+      cv::Point minDist2LampPoint;
+      bool is_first = true;
+      for (size_t k = 0; k < contours.size(); k++) {
+
+        polylines(img_res, contours[k], true, contoursColorRGB[i], 3, 8);
+
+        cv::Moments moments = cv::moments(contours[k]);
+        double m00 = moments.m00;
+        double m01 = moments.m01;
+        double m10 = moments.m10;
+        cv::Point robotCenterPointer(m10 / m00, m01 / m00);
+        double dst2Lamp = (double) sqrt(pow(lampCenterPointer.x - robotCenterPointer.x, 2) +
+                                        pow(lampCenterPointer.y - robotCenterPointer.y, 2));
+        if (is_first) {
+          minDist2Lamp = dst2Lamp;
+          minDist2LampPoint = robotCenterPointer;
+          is_first = false;
+        } else if (minDist2Lamp > dst2Lamp) {
+          minDist2Lamp = dst2Lamp;
+          minDist2LampPoint = robotCenterPointer;
+        }
+      }
+      draw_cross(img_res, minDist2LampPoint.x, minDist2LampPoint.y, 20, cv::Scalar(0, 0, 0));
+    }
+
+    //show images
+    cv::imshow("RES: ", img_res);
+    video.write(img_res);
+    cv::waitKey(33);
+  }
+  video.release();
+  vid.release();
 }
 
 void do_part_4() {
@@ -396,7 +536,8 @@ int main(int argc, char **argv) {
       break;
     }
     case 3: {
-      do_part_3();
+      //do_part_3();
+      do_part_3_on_video();
       break;
     }
     case 4: {
