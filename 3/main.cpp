@@ -347,7 +347,7 @@ void do_part_3_on_video(){
     //trackBarHsv(img_hsv);
 
     //get threshold parameters
-    std::vector<cv::Scalar> lowBrd = {cv::Scalar(0, 60, 125),    // R
+    std::vector<cv::Scalar> lowBrd = {cv::Scalar(0, 50, 125),    // R
                                       cv::Scalar(50, 39, 125),    // G
                                       cv::Scalar(80, 35, 35)};   // B
 
@@ -364,7 +364,7 @@ void do_part_3_on_video(){
       //for red color
       if (i == 0) {
         cv::Mat tmp_img_threshold;
-        inRange(img_hsv, cv::Scalar(129, 60, 125), cv::Scalar(179, 255, 255), tmp_img_threshold);
+        inRange(img_hsv, cv::Scalar(119, 50, 125), cv::Scalar(179, 255, 255), tmp_img_threshold);
         inRange(img_hsv, lowBrd[i], upBrd[i], img_threshold);
         img_threshold += tmp_img_threshold;
       } else {
@@ -376,7 +376,7 @@ void do_part_3_on_video(){
       img_threshold -= lamp_bin;
 
       //delete noise
-      cv::Mat kernel(cv::Size(17, 17), CV_8UC1, cv::Scalar(255));
+      cv::Mat kernel(cv::Size(15, 15), CV_8UC1, cv::Scalar(255));
       cv::erode(img_threshold, img_threshold, kernel);
       cv::dilate(img_threshold, img_threshold, kernel);
 
@@ -415,7 +415,10 @@ void do_part_3_on_video(){
           minDist2LampPoint = robotCenterPointer;
         }
       }
+      //cv::circle(img_res, minDist2LampPoint, 5, cv::Scalar(0, 0, 0), -1);
       draw_cross(img_res, minDist2LampPoint.x, minDist2LampPoint.y, 20, cv::Scalar(0, 0, 0));
+      std::string arr[3] = {"RED: ", "GREEN: ", "BLUE: "};
+      putText(img_res, arr[i] + std::to_string(contours.size()), cv::Point(50, i * 50 + 50), cv::FONT_HERSHEY_DUPLEX, 2, contoursColorRGB[i], 2);
     }
 
     //show images
